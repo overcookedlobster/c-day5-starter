@@ -1,0 +1,76 @@
+name: Autograding Tests
+on: [push, workflow_dispatch, repository_dispatch]
+
+permissions:
+  checks: write
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    name: Autograding
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python for testing
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Compile C code for testing
+        id: compile
+        # We override the CFLAGS here to inject the -DTESTING=1 macro.
+        # This activates the #ifdef block in guessing_game.c for predictable tests.
+        run: make all CFLAGS="-Wall -Wextra -std=c11 -lm -DTESTING=1"
+
+      # Day 5 In-Class Assignment Tests (40 points)
+      - name: Test - Guessing Game (Low/High)
+        if: success() && steps.compile.outcome == 'success'
+        uses: education/autograding-test-reporter@v1
+        with:
+          test-name: Test - Guessing Game (Low/High)
+          command: |
+            python3 -m unittest tests.TestDay5C.test_guess_too_low
+            python3 -m unittest tests.TestDay5C.test_guess_too_high
+          points: 20
+      
+      - name: Test - Guessing Game (Correct Guess)
+        if: success() && steps.compile.outcome == 'success'
+        uses: education/autograding-test-reporter@v1
+        with:
+          test-name: Test - Guessing Game (Correct Guess)
+          command: |
+            python3 -m unittest tests.TestDay5C.test_guess_correct_first_try
+            python3 -m unittest tests.TestDay5C.test_guess_correct_multi_try
+          points: 20
+
+      # Day 5 Homework Assignment Tests (60 points)
+      - name: Test - Unit Converter (Conversions)
+        if: success() && steps.compile.outcome == 'success'
+        uses: education/autograding-test-reporter@v1
+        with:
+          test-name: Test - Unit Converter (Conversions)
+          command: |
+            python3 -m unittest tests.TestDay5C.test_converter_km_to_miles
+            python3 -m unittest tests.TestDay5C.test_converter_c_to_f
+          points: 30
+      
+      - name: Test - Unit Converter (Menu Logic)
+        if: success() && steps.compile.outcome == 'success'
+        uses: education/autograding-test-reporter@v1
+        with:
+          test-name: Test - Unit Converter (Menu Logic)
+          command: |
+            python3 -m unittest tests.TestDay5C.test_converter_invalid_choice
+            python3 -m unittest tests.TestDay5C.test_converter_quit
+          points: 30
+
+      # Final Reporter
+      - name: Autograding Reporter
+        uses: education/autograding-grader-results@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
